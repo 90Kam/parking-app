@@ -1,4 +1,5 @@
 <script>
+  import { onMount } from 'svelte';  // TYLKO TO DODAJEMY
   import { supabase } from '$lib/supabaseClient';
 
   let parking = [];
@@ -13,8 +14,16 @@
     parking = data;
   }
 
-  loadParking();
+  // DODAJEMY TYLKO TE 3 LINIJKI:
+  onMount(async () => {
+    await loadParking();
+    supabase
+      .channel('parking_updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'parking_spots' }, loadParking)
+      .subscribe();
+  });
 
+  // RESZTA ZOSTAJE DOKŁADNIE TAK SAMO
   async function toggleSpot(spot) {
     if (spot.name) {
       if (confirm(`Czy chcesz zwolnić miejsce zajmowane przez ${spot.name}?`)) {
@@ -41,15 +50,16 @@
         return;
       }
     }
-    await loadParking();
+    await loadParking(); // To zostaje dla natychmiastowego feedbacku
   }
 </script>
 
+<!-- CAŁY STYLE I TEMPLATE ZOSTAJĄ IDENTYCZNE -->
 <style>
   .parking-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr) 10px; /* 2 kolumny przycisków + 1 kolumna muru */
-    grid-template-rows: repeat(5, 60px); /* 5 rzędów */
+    grid-template-columns: repeat(2, 1fr) 10px;
+    grid-template-rows: repeat(5, 60px);
     gap: 8px;
     max-width: 360px;
   }
@@ -101,6 +111,6 @@
         {/if}
       </button>
     {/each}
-    <div class="wall"></div> <!-- Jedna kolumna "murku" -->
+    <div class="wall"></div>
   {/each}
 </div>
