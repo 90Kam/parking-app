@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from 'svelte';  // TYLKO TO DODAJEMY
+  import { onMount } from 'svelte';  
   import { supabase } from '$lib/supabaseClient';
 
   let parking = [];
@@ -14,7 +14,7 @@
     parking = data;
   }
 
-  // DODAJEMY TYLKO TE 3 LINIJKI:
+
   onMount(async () => {
     await loadParking();
     supabase
@@ -23,7 +23,7 @@
       .subscribe();
   });
 
-  // RESZTA ZOSTAJE DOKŁADNIE TAK SAMO
+
   async function toggleSpot(spot) {
     if (spot.name) {
       if (confirm(`Czy chcesz zwolnić miejsce zajmowane przez ${spot.name}?`)) {
@@ -50,11 +50,11 @@
         return;
       }
     }
-    await loadParking(); // To zostaje dla natychmiastowego feedbacku
+    await loadParking(); 
   }
 </script>
 
-<!-- CAŁY STYLE I TEMPLATE ZOSTAJĄ IDENTYCZNE -->
+
 <style>
   .parking-grid {
     display: grid;
