@@ -2,9 +2,12 @@
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
 
-
+  // Logika parkingowa
   let parking = [];
   let deferredPrompt;
+  let showInstallButton = false;
+  let isIOS = false;
+  let isFirefox = false;
 
   async function loadParking() {
     const { data, error } = await supabase.from('parking_spots').select();
@@ -45,29 +48,48 @@
     await loadParking();
   }
 
+  // Logika instalacji PWA
+  onMount(() => {
+    loadParking();
 
-  const handleBeforeInstallPrompt = (event) => {
-    event.preventDefault();
-    deferredPrompt = event;
-  };
+    // Detekcja przeglądarki
+    isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    isFirefox = navigator.userAgent.includes('Firefox');
+
+    // Chrome/Edge - nasłuchuj zdarzenia PWA
+    if (!isIOS && !isFirefox) {
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        showInstallButton = true;
+      });
+    } else {
+      // Firefox/iOS - pokaż przycisk z instrukcją
+      showInstallButton = true;
+    }
+
+    // Ukryj przycisk jeśli apka jest już zainstalowana
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      showInstallButton = false;
+    }
+  });
 
   async function installPWA() {
+    // Chrome/Edge
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        console.log('Użytkownik zainstalował aplikację');
-      }
-      deferredPrompt = null;
-    } else {
-      alert('Aby zainstalować, użyj menu przeglądarki (ikonka "Dodaj do ekranu głównego")');
+      if (outcome === 'accepted') showInstallButton = false;
+      return;
     }
-  }
 
-  onMount(() => {
-    loadParking();
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  });
+    // Instrukcje dla innych przeglądarek
+    const instructions = isIOS
+      ? '1. Kliknij ikonę "Udostępnij" (kwadrat ze strzałką)\n2. Wybierz "Dodaj do ekranu głównego"'
+      : 'Otwórz menu przeglądarki (trzy kropki → "Zainstaluj")';
+    
+    alert(`Aby zainstalować aplikację:\n\n${instructions}`);
+  }
 </script>
 
 <style>
@@ -86,36 +108,48 @@
     color: white;
     font-weight: bold;
     cursor: pointer;
+    transition: transform 0.2s;
   }
-  .free { background-color: green; }
-  .taken { background-color: red; }
-  .wall { 
-    background-color: gray;
+  .spot-button:active {
+    transform: scale(0.98);
+  }
+  .free { background-color: #4CAF50; }
+  .taken { background-color: #f44336; }
+  .wall {
+    background-color: #757575;
     width: 10px;
     height: 100%;
     border-radius: 6px;
   }
-
   .install-btn {
     display: block;
     margin: 20px auto;
     padding: 12px 24px;
-    background: #4CAF50;
+    background: #FF9800;
     color: white;
     border: none;
     border-radius: 6px;
     font-weight: bold;
     cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  }
+  .install-btn:active {
+    transform: scale(0.98);
+  }
+  h1 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 10px;
   }
 </style>
 
 <h1>KTO MNIE ZASTAWIA</h1>
 
-
-<button on:click={installPWA} class="install-btn">
-  Zainstaluj aplikację
-</button>
-
+{#if showInstallButton}
+  <button on:click={installPWA} class="install-btn">
+    {isIOS || isFirefox ? 'Jak zainstalować aplikację?' : 'Zainstaluj aplikację'}
+  </button>
+{/if}
 <div class="parking-grid">
   {#each Array(5) as _, rowIndex}
     {#each Array(2) as _, colIndex}
