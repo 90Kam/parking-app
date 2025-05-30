@@ -8,6 +8,7 @@
   let showInstallButton = false;
   let isIOS = false;
   let isFirefox = false;
+  let isRunningAsPWA = false;
 
   async function loadParking() {
     const { data, error } = await supabase.from('parking_spots').select();
@@ -52,26 +53,28 @@
   onMount(() => {
     loadParking();
 
-    // Detekcja przeglądarki
+    // Detekcja środowiska
     isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     isFirefox = navigator.userAgent.includes('Firefox');
+    isRunningAsPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
-    // Chrome/Edge - nasłuchuj zdarzenia PWA
-    if (!isIOS && !isFirefox) {
+    // Chrome/Edge - nasłuchuj zdarzenia instalacji
+    if (!isIOS && !isFirefox && !isRunningAsPWA) {
       window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
         showInstallButton = true;
       });
-    } else {
+    } else if (!isRunningAsPWA) {
       // Firefox/iOS - pokaż przycisk z instrukcją
       showInstallButton = true;
     }
 
-    // Ukryj przycisk jeśli apka jest już zainstalowana
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    // Nasłuchuj instalacji
+    window.addEventListener('appinstalled', () => {
+      isRunningAsPWA = true;
       showInstallButton = false;
-    }
+    });
   });
 
   async function installPWA() {
@@ -79,7 +82,10 @@
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') showInstallButton = false;
+      if (outcome === 'accepted') {
+        isRunningAsPWA = true;
+        showInstallButton = false;
+      }
       return;
     }
 
@@ -145,11 +151,12 @@
 
 <h1>KTO MNIE ZASTAWIA</h1>
 
-{#if showInstallButton}
+{#if !isRunningAsPWA && showInstallButton}
   <button on:click={installPWA} class="install-btn">
     {isIOS || isFirefox ? 'Jak zainstalować aplikację?' : 'Zainstaluj aplikację'}
   </button>
 {/if}
+
 <div class="parking-grid">
   {#each Array(5) as _, rowIndex}
     {#each Array(2) as _, colIndex}
